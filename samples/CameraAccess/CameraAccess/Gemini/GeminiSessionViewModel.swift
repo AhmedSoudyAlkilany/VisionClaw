@@ -1,0 +1,141 @@
+import Foundation
+import SwiftUI
+
+@MainActor
+class GeminiSessionViewModel: ObservableObject {
+  @Published var isGeminiActive: Bool = false
+  @Published var connectionState: GeminiConnectionState = .disconnected
+  @Published var isModelSpeaking: Bool = false
+  @Published var sessionTimeRemaining: Int = GeminiConfig.sessionDurationSeconds
+  @Published var errorMessage: String?
+  @Published var showApiKeyPrompt: Bool = false
+
+  private let geminiService = GeminiLiveService()
+  private let audioManager = AudioManager()
+  private var sessionTimer: Task<Void, Never>?
+  private var lastVideoFrameTime: Date = .distantPast
+  private var stateObservation: Task<Void, Never>?
+
+  func startSession() async {
+    guard !isGeminiActive else { return }
+
+    if GeminiConfig.apiKey.isEmpty {
+      showApiKeyPrompt = true
+      return
+    }
+
+    isGeminiActive = true
+    sessionTimeRemaining = GeminiConfig.sessionDurationSeconds
+
+    // Wire audio callbacks
+    audioManager.onAudioCaptured = { [weak self] data in
+      guard let self else { return }
+      Task { @MainActor in
+        self.geminiService.sendAudio(data: data)
+      }
+    }
+
+    geminiService.onAudioReceived = { [weak self] data in
+      self?.audioManager.playAudio(data: data)
+    }
+
+    geminiService.onInterrupted = { [weak self] in
+      self?.audioManager.stopPlayback()
+    }
+
+    geminiService.onTurnComplete = nil
+
+    // Observe service state
+    stateObservation = Task { [weak self] in
+      guard let self else { return }
+      while !Task.isCancelled {
+        try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        guard !Task.isCancelled else { break }
+        self.connectionState = self.geminiService.connectionState
+        self.isModelSpeaking = self.geminiService.isModelSpeaking
+      }
+    }
+
+    // Setup audio
+    do {
+      try audioManager.setupAudioSession()
+    } catch {
+      errorMessage = "Audio setup failed: \(error.localizedDescription)"
+      isGeminiActive = false
+      return
+    }
+
+    // Connect to Gemini
+    await geminiService.connect()
+
+    if case .error(let msg) = geminiService.connectionState {
+      errorMessage = msg
+      isGeminiActive = false
+      return
+    }
+
+    // Start mic capture
+    do {
+      try audioManager.startCapture()
+    } catch {
+      errorMessage = "Mic capture failed: \(error.localizedDescription)"
+      geminiService.disconnect()
+      isGeminiActive = false
+      return
+    }
+
+    // Start session countdown timer
+    startTimer()
+  }
+
+  func stopSession() {
+    audioManager.stopCapture()
+    geminiService.disconnect()
+    sessionTimer?.cancel()
+    sessionTimer = nil
+    stateObservation?.cancel()
+    stateObservation = nil
+    sessionTimeRemaining = GeminiConfig.sessionDurationSeconds
+    isGeminiActive = false
+    connectionState = .disconnected
+    isModelSpeaking = false
+  }
+
+  func sendVideoFrameIfThrottled(image: UIImage) {
+    guard isGeminiActive, connectionState == .ready else { return }
+    let now = Date()
+    guard now.timeIntervalSince(lastVideoFrameTime) >= GeminiConfig.videoFrameInterval else { return }
+    lastVideoFrameTime = now
+    geminiService.sendVideoFrame(image: image)
+  }
+
+  func saveApiKey(_ key: String) {
+    GeminiConfig.apiKey = key
+    showApiKeyPrompt = false
+  }
+
+  var timerDisplay: String {
+    let minutes = sessionTimeRemaining / 60
+    let seconds = sessionTimeRemaining % 60
+    return String(format: "%d:%02d", minutes, seconds)
+  }
+
+  // MARK: - Private
+
+  private func startTimer() {
+    sessionTimer = Task { [weak self] in
+      while !Task.isCancelled {
+        try? await Task.sleep(nanoseconds: 1_000_000_000)
+        guard !Task.isCancelled, let self else { break }
+        if self.sessionTimeRemaining > 0 {
+          self.sessionTimeRemaining -= 1
+        }
+        if self.sessionTimeRemaining <= 0 {
+          self.stopSession()
+          self.errorMessage = "Session time limit reached (2 minutes for audio+video)"
+          break
+        }
+      }
+    }
+  }
+}

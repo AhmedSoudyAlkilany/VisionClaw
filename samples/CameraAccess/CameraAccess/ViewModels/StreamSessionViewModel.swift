@@ -40,6 +40,10 @@ class StreamSessionViewModel: ObservableObject {
   // Photo capture properties
   @Published var capturedPhoto: UIImage?
   @Published var showPhotoPreview: Bool = false
+
+  // Gemini Live integration
+  var geminiSessionVM: GeminiSessionViewModel?
+
   // The core DAT SDK StreamSession - handles all streaming operations
   private var streamSession: StreamSession
   // Listener tokens are used to manage DAT SDK event subscriptions
@@ -87,6 +91,8 @@ class StreamSessionViewModel: ObservableObject {
           if !self.hasReceivedFirstFrame {
             self.hasReceivedFirstFrame = true
           }
+          // Forward video frames to Gemini Live (throttled internally to ~1fps)
+          self.geminiSessionVM?.sendVideoFrameIfThrottled(image: image)
         }
       }
     }

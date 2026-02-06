@@ -11,7 +11,7 @@
 //
 // Main UI for video streaming from Meta wearable devices using the DAT SDK.
 // This view demonstrates the complete streaming API: video streaming with real-time display, photo capture,
-// and error handling.
+// and error handling. Extended with Gemini Live AI assistant integration.
 //
 
 import MWDATCore
@@ -20,6 +20,7 @@ import SwiftUI
 struct StreamView: View {
   @ObservedObject var viewModel: StreamSessionViewModel
   @ObservedObject var wearablesVM: WearablesViewModel
+  @ObservedObject var geminiVM: GeminiSessionViewModel
 
   var body: some View {
     ZStack {
@@ -43,11 +44,32 @@ struct StreamView: View {
           .foregroundColor(.white)
       }
 
-      // Bottom controls layer
+      // Gemini status overlay (top) + speaking indicator
+      if geminiVM.isGeminiActive {
+        VStack {
+          GeminiStatusBar(geminiVM: geminiVM)
+          Spacer()
+          if geminiVM.isModelSpeaking {
+            HStack(spacing: 8) {
+              Image(systemName: "speaker.wave.2.fill")
+                .foregroundColor(.white)
+                .font(.system(size: 14))
+              SpeakingIndicator()
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .background(Color.black.opacity(0.5))
+            .cornerRadius(20)
+            .padding(.bottom, 80)
+          }
+        }
+        .padding(.all, 24)
+      }
 
+      // Bottom controls layer
       VStack {
         Spacer()
-        ControlsView(viewModel: viewModel)
+        ControlsView(viewModel: viewModel, geminiVM: geminiVM)
       }
       .padding(.all, 24)
     }
@@ -55,6 +77,9 @@ struct StreamView: View {
       Task {
         if viewModel.streamingStatus != .stopped {
           await viewModel.stopSession()
+        }
+        if geminiVM.isGeminiActive {
+          geminiVM.stopSession()
         }
       }
     }
@@ -69,12 +94,29 @@ struct StreamView: View {
         )
       }
     }
+    // API key input sheet
+    .sheet(isPresented: $geminiVM.showApiKeyPrompt) {
+      ApiKeyInputView(isPresented: $geminiVM.showApiKeyPrompt) { key in
+        geminiVM.saveApiKey(key)
+      }
+    }
+    // Gemini error alert
+    .alert("AI Assistant", isPresented: Binding(
+      get: { geminiVM.errorMessage != nil },
+      set: { if !$0 { geminiVM.errorMessage = nil } }
+    )) {
+      Button("OK") { geminiVM.errorMessage = nil }
+    } message: {
+      Text(geminiVM.errorMessage ?? "")
+    }
   }
 }
 
 // Extracted controls for clarity
 struct ControlsView: View {
   @ObservedObject var viewModel: StreamSessionViewModel
+  @ObservedObject var geminiVM: GeminiSessionViewModel
+
   var body: some View {
     // Controls row
     HStack(spacing: 8) {
@@ -91,6 +133,20 @@ struct ControlsView: View {
       // Photo button
       CircleButton(icon: "camera.fill", text: nil) {
         viewModel.capturePhoto()
+      }
+
+      // Gemini AI button
+      CircleButton(
+        icon: geminiVM.isGeminiActive ? "waveform.circle.fill" : "waveform.circle",
+        text: "AI"
+      ) {
+        Task {
+          if geminiVM.isGeminiActive {
+            geminiVM.stopSession()
+          } else {
+            await geminiVM.startSession()
+          }
+        }
       }
     }
   }
