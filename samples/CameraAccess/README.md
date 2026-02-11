@@ -62,7 +62,7 @@ open CameraAccess.xcodeproj
 All API keys and tokens are stored in a local `Secrets.swift` file that is **gitignored** (never committed).
 
 ```bash
-cp CameraAccess/Secrets.example.swift CameraAccess/Secrets.swift
+cp CameraAccess/Secrets.swift.example CameraAccess/Secrets.swift
 ```
 
 Open `CameraAccess/Secrets.swift` and fill in your values:
@@ -162,7 +162,7 @@ Now when you talk to the AI, it can execute tasks through OpenClaw.
 | File | Purpose |
 |------|---------|
 | `Secrets.swift` | Local API keys and tokens (gitignored) |
-| `Secrets.example.swift` | Template for Secrets.swift |
+| `Secrets.swift.example` | Template for Secrets.swift |
 | `Gemini/GeminiConfig.swift` | Model config, system prompt, reads from Secrets |
 | `Gemini/GeminiLiveService.swift` | WebSocket client for Gemini Live API |
 | `Gemini/AudioManager.swift` | Mic capture (PCM 16kHz) + audio playback (PCM 24kHz) |
@@ -206,7 +206,7 @@ Gemini Live supports function calling. This app declares a single `execute` tool
 
 ## Troubleshooting
 
-**"Gemini API key not configured"** -- Make sure you copied `Secrets.example.swift` to `Secrets.swift` and added your API key (see Quick Start step 2).
+**"Gemini API key not configured"** -- Make sure you copied `Secrets.swift.example` to `Secrets.swift` and added your API key (see Quick Start step 2).
 
 **OpenClaw connection timeout** -- Make sure your iPhone and Mac are on the same Wi-Fi network, the gateway is running (`openclaw gateway restart`), and the hostname in `Secrets.swift` matches your Mac's Bonjour name.
 
