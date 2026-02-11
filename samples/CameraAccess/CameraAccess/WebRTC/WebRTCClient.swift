@@ -68,8 +68,8 @@ class WebRTCClient: NSObject {
   }
 
   /// Called by ViewModel to push video frames from DAT SDK / iPhone camera.
-  func pushVideoFrame(_ image: UIImage, rotation: RTCVideoRotation = ._0) {
-    videoCapturer?.pushFrame(image, rotation: rotation)
+  func pushVideoFrame(_ image: UIImage) {
+    videoCapturer?.pushFrame(image)
   }
 
   // MARK: - SDP Negotiation

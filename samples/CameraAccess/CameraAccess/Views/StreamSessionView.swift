@@ -42,11 +42,9 @@ struct StreamSessionView: View {
       viewModel.geminiSessionVM = geminiVM
       viewModel.webrtcSessionVM = webrtcVM
       geminiVM.streamingMode = viewModel.streamingMode
-      webrtcVM.streamingMode = viewModel.streamingMode
     }
     .onChange(of: viewModel.streamingMode) { newMode in
       geminiVM.streamingMode = newMode
-      webrtcVM.streamingMode = newMode
     }
     .onAppear {
       UIApplication.shared.isIdleTimerDisabled = true

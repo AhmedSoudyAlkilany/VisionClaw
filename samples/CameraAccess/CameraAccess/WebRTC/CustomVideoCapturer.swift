@@ -8,7 +8,7 @@ class CustomVideoCapturer: RTCVideoCapturer {
 
   /// Push a UIImage frame into the WebRTC video track.
   /// Called on each frame from StreamSessionViewModel (24fps glasses, 30fps iPhone).
-  func pushFrame(_ image: UIImage, rotation: RTCVideoRotation = ._0) {
+  func pushFrame(_ image: UIImage) {
     guard let cgImage = image.cgImage else { return }
 
     let width = cgImage.width
@@ -47,7 +47,7 @@ class CustomVideoCapturer: RTCVideoCapturer {
     let timeStampNs = Int64(CACurrentMediaTime() * 1_000_000_000)
     let rtcFrame = RTCVideoFrame(
       buffer: rtcPixelBuffer,
-      rotation: rotation,
+      rotation: ._0,
       timeStampNs: timeStampNs
     )
 
