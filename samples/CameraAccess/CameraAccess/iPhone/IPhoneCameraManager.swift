@@ -54,14 +54,6 @@ class IPhoneCameraManager: NSObject {
       captureSession.addOutput(videoOutput)
     }
 
-    // Force raw landscape pixels (override iOS auto-rotation based on device orientation).
-    // UIImage orientation metadata (.right) handles portrait display in SwiftUI.
-    if let connection = videoOutput.connection(with: .video) {
-      if connection.isVideoRotationAngleSupported(0) {
-        connection.videoRotationAngle = 0
-      }
-    }
-
     captureSession.commitConfiguration()
     NSLog("[iPhoneCamera] Session configured")
   }
@@ -91,7 +83,7 @@ extension IPhoneCameraManager: AVCaptureVideoDataOutputSampleBufferDelegate {
 
     let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
     guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return }
-    let image = UIImage(cgImage: cgImage, scale: 1.0, orientation: .right)
+    let image = UIImage(cgImage: cgImage)
 
     onFrameCaptured?(image)
   }
